@@ -22,11 +22,21 @@ References:
 */
 
 var fs = require('fs');
+var rest = require('restler');
+var sys = require('util');
 var program = require('commander');
 var cheerio = require('cheerio');
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
 
+
+var assertUrlExists = function(url) {
+    if(url == null || url == ""){
+        console.log("Url does not exist. Exiting.");
+        process.exit(1);
+    }
+    return url;
+}
 var assertFileExists = function(infile) {
     var instr = infile.toString();
     if(!fs.existsSync(instr)) {
@@ -65,7 +75,18 @@ if(require.main == module) {
     program
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
         .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
+        .option('-u, --url <html_page>', 'url to index.html' , clone(assertUrlExists))
         .parse(process.argv);
+    if(program.url != null){
+      rest.get(program.url).on('complete', function(result) {
+      if (result instanceof Error) {
+        sys.puts('Error: ' + result.message);
+        this.retry(5000); // try again after 5 sec
+        } else {
+          program.file  = result;
+        }
+      });
+    }
     var checkJson = checkHtmlFile(program.file, program.checks);
     var outJson = JSON.stringify(checkJson, null, 4);
     console.log(outJson);
